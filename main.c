@@ -6,7 +6,18 @@ sbmp_image image;
 int32_t main(int32_t argc, char* argv[]){
   uint16_t **kernel = calloc (K_SIZE, sizeof (int *));
   char filename[TAM];
-  uint32_t centerX,centerY;
+  uint32_t centerX,centerY,nThreads,radius;
+  float l,k;
+
+  if(argc<5){
+    printf("complete los parametros en orden : r l k nThreads \n");
+    exit(1);
+  }
+
+  radius=atoi(argv[1]);
+  l=atof(argv[2]);
+  k=atof(argv[3]);
+  nThreads=atoi(argv[4]);
   
   for (int k = 0; k < K_SIZE; k++)
   kernel[k] = calloc (K_SIZE, sizeof (uint16_t));
@@ -15,22 +26,33 @@ int32_t main(int32_t argc, char* argv[]){
   strcpy(filename,"simple_bmp/base.bmp");
   sbmp_load_bmp(filename,&image);
 
+
+
   centerX=image.info.image_height/2;
   centerY=image.info.image_width/2;
   int32_t kernelSum=getKernelSum(kernel);
-
+  omp_set_num_threads(nThreads);
+  double time1=omp_get_wtime( );
   
-  for(int32_t i=0;i<image.info.image_height-1;i++){
-      for(int32_t j=0;j<image.info.image_width-1;j++){           
-          if(RADIUS>=getModule(centerX-i,centerY-j)){
-            image.data[i][j].red=linearFiltering(image.data[i][j].red);
-            image.data[i][j].green=linearFiltering(image.data[i][j].green);
-            image.data[i][j].blue=linearFiltering(image.data[i][j].blue);
-          }else{
-            convFiltering(i,j,kernel,kernelSum);
-          }
-      }
+  #pragma omp parallel 
+  {
+    #pragma omp for schedule(runtime)
+    for(int32_t i=0;i<image.info.image_height-1;i++){
+        for(int32_t j=0;j<image.info.image_width-1;j++){           
+            if(radius>=getModule(centerX-i,centerY-j)){
+              image.data[i][j].red=linearFiltering(image.data[i][j].red,k,l);
+              image.data[i][j].green=linearFiltering(image.data[i][j].green,k,l);
+              image.data[i][j].blue=linearFiltering(image.data[i][j].blue,k,l);
+            }else{
+              convFiltering(i,j,kernel,kernelSum);
+            }
+        }
+    }
+
   }
+  double time2=omp_get_wtime( );
+
+  printf("%d %f \n",nThreads,time2-time1);
   
   strcpy(filename,"simple_bmp/prueba.bmp");
 
@@ -41,8 +63,8 @@ int32_t main(int32_t argc, char* argv[]){
 }
 
 
-uint8_t linearFiltering(uint8_t  pixelColor){
-    int32_t result=(pixelColor*K)+L;
+uint8_t linearFiltering(uint8_t  pixelColor,float k,float l){
+    int32_t result=(pixelColor*k)+l;
     if(result>255){
         result=255;
     }
@@ -101,23 +123,26 @@ void kernel_setup (uint16_t **kern, int16_t ksize){
         }
 
     }
-  for (int i = 1; i < ksize / 2; i++)
+
+  for (int i = 1; i < (ksize / 2); i++)
     {
       for (int j = 0; j < ksize; j++)
         {
           kern[i + ksize / 2][j] = kern[ksize / 2 - i][j];
         }
-
     }
 
-  for (int i = 0; i < ksize; i++)
-    {
-      for (int j = 0; j < ksize; j++)
-        {
-          printf ("%3hu ", kern[i][j]);
-        }
-      printf ("\n");
-    }
+  for (int j = 0; j < ksize; j++)
+    kern[ksize-1][j] = st_val;
+
+  // for (int i = 0; i < ksize; i++)
+  //   {
+  //     for (int j = 0; j < ksize; j++)
+  //       {
+  //         printf ("%3hu ", kern[i][j]);
+  //       }
+  //     printf ("\n");
+  //   }
 }
 
 int32_t getKernelSum(uint16_t ** kernel){

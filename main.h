@@ -1,14 +1,12 @@
 #include "./simple_bmp/simple_bmp.h"
+#include <omp.h>
 #define TAM 256
-#define RADIUS 1500
-#define K 1.5
-#define L 40
-#define K_SIZE 42
+#define K_SIZE 41
 
 
 int32_t getModule(int32_t x,int32_t y);
 
-uint8_t linearFiltering(uint8_t );
+uint8_t linearFiltering(uint8_t,float,float);
 
 void   convFiltering(int32_t x,int32_t y,uint16_t**,int32_t);
 
